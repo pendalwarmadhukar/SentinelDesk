@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import dashboardApi from '../services/dashboardApi';
 import alertApi from '../services/alertApi';
 import { DashboardStats, SecurityAlert } from '../types';
+import { INITIAL_DASHBOARD_STATS } from '../services/mockData';
 import StatCard from '../components/StatCard';
 import AlertTable from '../components/AlertTable';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -31,7 +32,7 @@ import {
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [stats, setStats] = useState<DashboardStats>(INITIAL_DASHBOARD_STATS);
   const [recentAlerts, setRecentAlerts] = useState<SecurityAlert[]>([]);
   const [newAlertIds, setNewAlertIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -48,7 +49,15 @@ export const Dashboard: React.FC = () => {
         alertApi.getAlerts({ limit: 6 }),
       ]);
       if (statsData && typeof statsData === 'object') {
-        setStats(statsData);
+        setStats({
+          ...INITIAL_DASHBOARD_STATS,
+          ...statsData,
+          severityDistribution: statsData.severityDistribution || INITIAL_DASHBOARD_STATS.severityDistribution,
+          alertsOverTime: statsData.alertsOverTime?.length ? statsData.alertsOverTime : INITIAL_DASHBOARD_STATS.alertsOverTime,
+          incidentStatusDistribution: statsData.incidentStatusDistribution?.length ? statsData.incidentStatusDistribution : INITIAL_DASHBOARD_STATS.incidentStatusDistribution,
+          topSourceIps: statsData.topSourceIps?.length ? statsData.topSourceIps : INITIAL_DASHBOARD_STATS.topSourceIps,
+          eventTypeDistribution: statsData.eventTypeDistribution?.length ? statsData.eventTypeDistribution : INITIAL_DASHBOARD_STATS.eventTypeDistribution,
+        });
       }
       if (alertsData && Array.isArray(alertsData.data)) {
         setRecentAlerts(alertsData.data);
@@ -85,12 +94,18 @@ export const Dashboard: React.FC = () => {
 
         // Update stats immediately
         if (updatedStats && typeof updatedStats === 'object') {
-          setStats(updatedStats);
+          setStats((prev) => ({
+            ...prev,
+            ...updatedStats,
+            alertsOverTime: updatedStats.alertsOverTime?.length ? updatedStats.alertsOverTime : prev.alertsOverTime,
+            incidentStatusDistribution: updatedStats.incidentStatusDistribution?.length ? updatedStats.incidentStatusDistribution : prev.incidentStatusDistribution,
+            topSourceIps: updatedStats.topSourceIps?.length ? updatedStats.topSourceIps : prev.topSourceIps,
+            eventTypeDistribution: updatedStats.eventTypeDistribution?.length ? updatedStats.eventTypeDistribution : prev.eventTypeDistribution,
+          }));
         } else {
           setStats((prev) => {
-            if (!prev) return prev;
             const sevKey = incomingAlert.severity.toLowerCase() as 'critical' | 'high' | 'medium' | 'low';
-            const currDist = prev.severityDistribution || { critical: 0, high: 0, medium: 0, low: 0 };
+            const currDist = prev.severityDistribution || INITIAL_DASHBOARD_STATS.severityDistribution;
             return {
               ...prev,
               totalAlerts: (prev.totalAlerts ?? 0) + 1,
@@ -261,7 +276,9 @@ export const Dashboard: React.FC = () => {
               <TrendingUp className="h-3 w-3" /> Live Feed
             </span>
           </div>
-          <AlertsTimelineChart data={stats.alertsOverTime || []} />
+          <AlertsTimelineChart
+            data={stats.alertsOverTime?.length ? stats.alertsOverTime : INITIAL_DASHBOARD_STATS.alertsOverTime}
+          />
         </div>
 
         {/* Severity Distribution (1 col) */}
@@ -273,7 +290,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <SeverityDistributionChart
-            data={stats.severityDistribution || { critical: 0, high: 0, medium: 0, low: 0 }}
+            data={stats.severityDistribution || INITIAL_DASHBOARD_STATS.severityDistribution}
           />
         </div>
       </div>
@@ -288,7 +305,9 @@ export const Dashboard: React.FC = () => {
             </h3>
             <p className="text-[11px] text-slate-400">Cases currently tracked</p>
           </div>
-          <IncidentStatusChart data={stats.incidentStatusDistribution || []} />
+          <IncidentStatusChart
+            data={stats.incidentStatusDistribution?.length ? stats.incidentStatusDistribution : INITIAL_DASHBOARD_STATS.incidentStatusDistribution}
+          />
         </div>
 
         {/* Top Source IPs */}
@@ -299,7 +318,9 @@ export const Dashboard: React.FC = () => {
             </h3>
             <p className="text-[11px] text-slate-400">Click bar to inspect threat profile</p>
           </div>
-          <TopSourceIpsChart data={stats.topSourceIps || []} />
+          <TopSourceIpsChart
+            data={stats.topSourceIps?.length ? stats.topSourceIps : INITIAL_DASHBOARD_STATS.topSourceIps}
+          />
         </div>
 
         {/* Event Type Distribution */}
@@ -310,7 +331,9 @@ export const Dashboard: React.FC = () => {
             </h3>
             <p className="text-[11px] text-slate-400">Top security categories</p>
           </div>
-          <EventTypeChart data={stats.eventTypeDistribution || []} />
+          <EventTypeChart
+            data={stats.eventTypeDistribution?.length ? stats.eventTypeDistribution : INITIAL_DASHBOARD_STATS.eventTypeDistribution}
+          />
         </div>
       </div>
 
