@@ -77,11 +77,12 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
+    const status = error.response?.status;
     const isNetworkError =
       error.code === 'ERR_NETWORK' ||
       error.code === 'ECONNABORTED' ||
       error.message?.includes('Network Error') ||
-      (error.response && error.response.status === 404);
+      (status !== undefined && (status === 404 || status === 405 || status >= 500));
 
     // If backend is not currently running or returned 404/network error,
     // handle seamlessly via Mock Adapter so the analyst can interact with the applet
