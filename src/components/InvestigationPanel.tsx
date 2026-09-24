@@ -188,7 +188,7 @@ export const InvestigationPanel: React.FC<InvestigationPanelProps> = ({
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-white tracking-wide">AI Threat Copilot</h3>
-                <p className="text-[10px] text-cyan-400/70 font-mono">Powered by Gemini 2.0 Flash</p>
+                <p className="text-[10px] text-cyan-400/70 font-mono">Powered by Gemini 3.8 Flash</p>
               </div>
               <span className="ml-auto flex items-center gap-1 text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">
                 <Sparkles className="h-2.5 w-2.5" /> LIVE AI

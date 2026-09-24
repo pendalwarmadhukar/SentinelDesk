@@ -698,12 +698,12 @@ async function startServer() {
     try {
       const ai = new GoogleGenAI({ apiKey });
       const pingResult = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.8-flash',
         contents: 'Reply with PONG only.',
       });
       const pingText = pingResult?.candidates?.[0]?.content?.parts?.[0]?.text ||
         (typeof pingResult?.text === 'string' ? pingResult.text : 'PONG');
-      res.json({ status: 'connected', model: 'gemini-2.0-flash', valid: true, ping: pingText.trim() });
+      res.json({ status: 'connected', model: 'gemini-3.8-flash', valid: true, ping: pingText.trim() });
     } catch (err: any) {
       res.status(500).json({ status: 'error', error: err.message });
     }
@@ -733,7 +733,7 @@ Event Count: ${alert.eventCount}`
         : 'General cybersecurity inquiry';
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.8-flash',
         contents: `You are an expert Tier-3 SOC Incident Responder & Threat Intelligence Analyst for SentinelDesk.
 Security Alert Context:
 ${alertContext}
@@ -751,7 +751,7 @@ ${prompt || 'Provide a prioritized threat breakdown, likely adversary intent (MI
       res.json({
         success: true,
         analysis: analysisText,
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.8-flash',
         timestamp: new Date().toISOString(),
       });
     } catch (err: any) {
