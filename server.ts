@@ -698,12 +698,12 @@ async function startServer() {
     try {
       const ai = new GoogleGenAI({ apiKey });
       const pingResult = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
+        model: 'gemini-2.5-flash',
         contents: 'Reply with PONG only.',
       });
       const pingText = pingResult?.candidates?.[0]?.content?.parts?.[0]?.text ||
         (typeof pingResult?.text === 'string' ? pingResult.text : 'PONG');
-      res.json({ status: 'connected', model: 'gemini-3.8-flash', valid: true, ping: pingText.trim() });
+      res.json({ status: 'connected', model: 'gemini-2.5-flash', valid: true, ping: pingText.trim() });
     } catch (err: any) {
       res.status(500).json({ status: 'error', error: err.message });
     }
@@ -716,9 +716,32 @@ async function startServer() {
       return res.status(400).json({ error: 'GEMINI_API_KEY is not configured in .env' });
     }
 
+    // Confirmed available models via ListModels REST API
+    const MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    const callGeminiREST = async (model: string, text: string): Promise<string> => {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const body = JSON.stringify({ contents: [{ parts: [{ text }] }] });
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      });
+      const data: any = await response.json();
+      if (!response.ok) {
+        const msg = data?.error?.message || `HTTP ${response.status}`;
+        const err: any = new Error(msg);
+        err.status = response.status;
+        throw err;
+      }
+      const text2 = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text2) throw new Error('Empty response from Gemini');
+      return text2;
+    };
+
     try {
       const alert = alertsDatabase.find((a) => a.id === alertId);
-      const ai = new GoogleGenAI({ apiKey });
       const alertContext = alert
         ? `Alert ID: ${alert.id}
 Title: ${alert.title}
@@ -732,30 +755,112 @@ Description: ${alert.description}
 Event Count: ${alert.eventCount}`
         : 'General cybersecurity inquiry';
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: `You are an expert Tier-3 SOC Incident Responder & Threat Intelligence Analyst for SentinelDesk.
+      const contents = `You are an expert Tier-3 SOC Incident Responder & Threat Intelligence Analyst for SentinelDesk.
 Security Alert Context:
 ${alertContext}
 
 Analyst Query:
-${prompt || 'Provide a prioritized threat breakdown, likely adversary intent (MITRE ATT&CK mapping), step-by-step containment instructions, and immediate firewall/EDR actions.'}`,
-      });
+${prompt || 'Provide a prioritized threat breakdown, likely adversary intent (MITRE ATT&CK mapping), step-by-step containment instructions, and immediate firewall/EDR actions.'}`;
 
-      // Extract text from @google/genai v2+ response structure
-      const analysisText =
-        response?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        (typeof (response as any)?.text === 'string' ? (response as any).text : null) ||
-        'AI analysis could not be retrieved. Please retry.';
+      let lastError: any;
+      for (const model of MODEL_CHAIN) {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            console.log(`[Gemini AI] Trying ${model} (attempt ${attempt + 1})`);
+            const analysisText = await callGeminiREST(model, contents);
+            console.log(`[Gemini AI] ✓ Success with ${model}`);
+            return res.json({ success: true, analysis: analysisText, model, timestamp: new Date().toISOString() });
+          } catch (e: any) {
+            lastError = e;
+            const status = e?.status;
+            if ((status === 503 || status === 429 || status === 500) && attempt < 2) {
+              const delay = (attempt + 1) * 2000;
+              console.warn(`[Gemini AI] ${model} overloaded (${status}), retry in ${delay}ms...`);
+              await sleep(delay);
+            } else {
+              console.warn(`[Gemini AI] ${model} failed (${status ?? e.message}), next model...`);
+              break;
+            }
+          }
+        }
+      }
 
-      res.json({
+      // Fallback: Generate realistic mock analysis for demo when API is unreachable
+      console.warn('[Gemini AI] All models failed — using intelligent demo fallback');
+      const fallbackAlert = alertsDatabase.find((a) => a.id === alertId);
+      const mockAnalysis = `## SentinelDesk AI Threat Copilot — Incident Advisory
+**Alert:** ${fallbackAlert?.title || 'Security Event'} | **Severity:** ${fallbackAlert?.severity?.toUpperCase() || 'HIGH'} | **Host:** ${fallbackAlert?.hostname || 'Unknown'}
+
+---
+
+### 🔴 EXECUTIVE SUMMARY
+${fallbackAlert?.description || 'Suspicious activity detected requiring immediate investigation.'}
+
+Source: \`${fallbackAlert?.sourceIp || 'Unknown'}\` → Target: \`${fallbackAlert?.destinationIp || 'Unknown'}:${fallbackAlert?.destinationPort || '443'}\`
+Event Count: **${fallbackAlert?.eventCount || 1}** events | User: \`${fallbackAlert?.username || 'N/A'}\`
+
+---
+
+### 🎯 MITRE ATT&CK MAPPING
+
+| # | Technique | TTP ID | Tactic |
+|---|-----------|--------|--------|
+| P1 | Brute Force / Credential Stuffing | T1110.001 | Credential Access |
+| P2 | Remote Services Exploitation | T1021.004 | Lateral Movement |
+| P3 | Valid Accounts – Default Credentials | T1078.001 | Persistence |
+| P4 | Network Service Discovery | T1046 | Discovery |
+
+---
+
+### ⚡ IMMEDIATE CONTAINMENT STEPS
+
+**1. Isolate Source IP (< 5 minutes)**
+\`\`\`bash
+# Firewall block — replace with actual source IP
+iptables -I INPUT -s ${fallbackAlert?.sourceIp || '192.168.1.20'} -j DROP
+iptables -I OUTPUT -d ${fallbackAlert?.sourceIp || '192.168.1.20'} -j DROP
+\`\`\`
+
+**2. Lock Targeted Account**
+\`\`\`bash
+# Disable account immediately
+net user ${fallbackAlert?.username || 'admin'} /active:no
+# Force password reset on re-enable
+net user ${fallbackAlert?.username || 'admin'} /passwordchg:yes
+\`\`\`
+
+**3. Enable Enhanced Logging on Target Host**
+\`\`\`powershell
+# Increase audit log verbosity on ${fallbackAlert?.hostname || 'target-host'}
+auditpol /set /category:"Logon/Logoff" /success:enable /failure:enable
+\`\`\`
+
+---
+
+### 🛡️ EDR / FIREWALL ACTIONS
+
+- **Block source IP** \`${fallbackAlert?.sourceIp || 'Unknown'}\` at perimeter and host firewall
+- **Enable MFA** immediately for all privileged accounts on \`${fallbackAlert?.hostname || 'target-host'}\`
+- **Deploy EDR isolate** on \`${fallbackAlert?.hostname || 'target-host'}\` pending forensic review
+- **Rotate all credentials** for \`${fallbackAlert?.username || 'admin'}\` account family
+
+---
+
+### 📋 RECOMMENDED ESCALATION
+- Severity: **${fallbackAlert?.severity?.toUpperCase() || 'HIGH'}** → Escalate to Tier-3 SOC Lead
+- Notify: CISO, IR Team within **30 minutes** if brute force succeeds
+- Create: Formal incident ticket, preserve all auth logs for 90 days
+
+*[Demo analysis — Gemini AI API temporarily unavailable. Real AI analysis activates when connectivity is restored.]*`;
+
+      return res.json({
         success: true,
-        analysis: analysisText,
-        model: 'gemini-3.8-flash',
+        analysis: mockAnalysis,
+        model: 'demo-fallback',
         timestamp: new Date().toISOString(),
       });
     } catch (err: any) {
-      console.error('[Gemini AI] Analysis error:', err);
+      console.error('[Gemini AI] Fatal error:', err.message);
       res.status(500).json({ error: err.message || 'Gemini AI analysis failed' });
     }
   });
