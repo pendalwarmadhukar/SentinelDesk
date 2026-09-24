@@ -69,9 +69,10 @@ export const AlertsTimelineChart: React.FC<AlertsTimelineChartProps> = ({ data }
           />
           <Legend
             verticalAlign="top"
-            height={32}
+            height={36}
+            wrapperStyle={{ paddingBottom: '10px' }}
             formatter={(val) => (
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 mr-2">
+              <span className="inline-block px-2 text-[11px] font-mono uppercase tracking-wider text-slate-400">
                 {val}
               </span>
             )}

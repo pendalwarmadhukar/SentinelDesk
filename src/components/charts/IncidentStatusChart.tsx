@@ -43,7 +43,7 @@ export const IncidentStatusChart: React.FC<IncidentStatusChartProps> = ({ data }
             formatter={(value: any) => [`${value} incidents`, 'Count']}
           />
           <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-            {data.map((entry) => (
+            {chartData.map((entry) => (
               <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#38bdf8'} />
             ))}
           </Bar>

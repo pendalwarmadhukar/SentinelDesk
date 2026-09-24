@@ -60,9 +60,10 @@ export const SeverityDistributionChart: React.FC<SeverityDistributionChartProps>
           />
           <Legend
             verticalAlign="bottom"
-            height={36}
+            height={40}
+            wrapperStyle={{ paddingTop: '12px' }}
             formatter={(value) => (
-              <span className="text-[11px] font-mono font-semibold text-slate-300 mr-2">
+              <span className="inline-block px-2 text-[11px] font-mono font-semibold text-slate-300">
                 {value}
               </span>
             )}

@@ -48,7 +48,7 @@ export const EventTypeChart: React.FC<EventTypeChartProps> = ({ data }) => {
             formatter={(value: any) => [`${value} detections`, 'Total']}
           />
           <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-            {data.map((entry, index) => (
+            {chartData.map((entry, index) => (
               <Cell key={entry.type} fill={TYPE_COLORS[index % TYPE_COLORS.length]} />
             ))}
           </Bar>

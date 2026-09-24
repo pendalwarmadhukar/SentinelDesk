@@ -64,7 +64,7 @@ export const TopSourceIpsChart: React.FC<TopSourceIpsChartProps> = ({ data }) =>
             }}
             cursor="pointer"
           >
-            {data.map((entry) => (
+            {chartData.map((entry) => (
               <Cell key={entry.ip} fill={RISK_COLORS[entry.riskLevel] || '#f97316'} />
             ))}
           </Bar>
