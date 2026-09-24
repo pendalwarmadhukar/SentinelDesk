@@ -1,0 +1,6 @@
+{
+  "name": "SentinelDesk — SOC Monitoring & Incident Response",
+  "description": "Enterprise-grade SOC monitoring and incident response dashboard for cybersecurity analysts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
