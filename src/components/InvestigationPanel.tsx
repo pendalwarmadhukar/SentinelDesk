@@ -16,6 +16,10 @@ import {
   Globe,
   FileText,
   AlertTriangle,
+  Bot,
+  Send,
+  Loader2,
+  Sparkles,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -44,6 +48,35 @@ export const InvestigationPanel: React.FC<InvestigationPanelProps> = ({
   const [selectedSeverity, setSelectedSeverity] = useState<Severity>(alert.severity);
   const [selectedStatus, setSelectedStatus] = useState<AlertStatus>(alert.status);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // AI Copilot state
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleAiAnalyze = async () => {
+    setIsAiLoading(true);
+    setAiError(null);
+    setAiAnalysis(null);
+    try {
+      const res = await fetch('/api/ai/analyze-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          alertId: alert.id,
+          prompt: aiQuery.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'AI analysis failed');
+      setAiAnalysis(data.analysis);
+    } catch (err: any) {
+      setAiError(err.message || 'AI Copilot failed. Please retry.');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     await onSaveInvestigation(activeNotes, selectedStatus, selectedSeverity);
@@ -145,6 +178,77 @@ export const InvestigationPanel: React.FC<InvestigationPanelProps> = ({
                 {alert.username}
               </span>
             </div>
+          </div>
+
+          {/* === AI THREAT COPILOT PANEL === */}
+          <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-950/40 to-slate-900/80 p-5 shadow-lg shadow-cyan-950/20">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/10 border border-cyan-500/30">
+                <Bot className="h-4 w-4 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white tracking-wide">AI Threat Copilot</h3>
+                <p className="text-[10px] text-cyan-400/70 font-mono">Powered by Gemini 2.0 Flash</p>
+              </div>
+              <span className="ml-auto flex items-center gap-1 text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">
+                <Sparkles className="h-2.5 w-2.5" /> LIVE AI
+              </span>
+            </div>
+
+            {/* Query Input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={aiQuery}
+                onChange={(e) => setAiQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !isAiLoading && handleAiAnalyze()}
+                placeholder="Ask AI: MITRE mapping, containment steps, threat actor profile..."
+                className="flex-1 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-500 focus:border-cyan-500/60 focus:outline-none focus:ring-1 focus:ring-cyan-500/20"
+              />
+              <button
+                onClick={handleAiAnalyze}
+                disabled={isAiLoading}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 px-3.5 py-2 text-xs font-semibold text-white transition-colors"
+              >
+                {isAiLoading ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyzing...</>
+                ) : (
+                  <><Send className="h-3.5 w-3.5" /> Analyze</>
+                )}
+              </button>
+            </div>
+
+            {/* AI Response */}
+            {aiError && (
+              <div className="mt-3 rounded-lg border border-red-500/30 bg-red-950/20 px-4 py-2.5 text-xs font-mono text-red-400">
+                ⚠ {aiError}
+              </div>
+            )}
+
+            {isAiLoading && !aiAnalysis && (
+              <div className="mt-4 flex items-center gap-2 text-xs text-cyan-400 font-mono animate-pulse">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                SentinelDesk AI is analyzing threat context via Gemini...
+              </div>
+            )}
+
+            {aiAnalysis && (
+              <div className="mt-4 rounded-lg border border-slate-700 bg-slate-950 p-4 max-h-72 overflow-y-auto">
+                <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-slate-800">
+                  <Bot className="h-3.5 w-3.5 text-cyan-400" />
+                  <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider">AI Threat Intelligence Report</span>
+                </div>
+                <pre className="text-xs text-slate-200 font-mono leading-relaxed whitespace-pre-wrap break-words">
+                  {aiAnalysis}
+                </pre>
+              </div>
+            )}
+
+            {!aiAnalysis && !isAiLoading && !aiError && (
+              <p className="mt-3 text-[11px] text-slate-500 font-mono italic">
+                Press Analyze or ask a specific question — the AI will provide threat breakdown, MITRE ATT&amp;CK mappings, and containment steps.
+              </p>
+            )}
           </div>
 
           {/* Investigation Notes Editor */}
